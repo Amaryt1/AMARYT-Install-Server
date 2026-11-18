@@ -1,0 +1,23 @@
+name: Validate install server
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: docker build -t amaryt-install:test .
+      - name: Smoke test container
+        run: |
+          credential="$(openssl rand -hex 32)"
+          docker run -d --name install-test -p 127.0.0.1:8080:8080 -e PUBLIC_ORIGIN=https://install.example -e "API_CLIENTS={\"ci\":\"$credential\"}" amaryt-install:test
+          curl --retry 10 --retry-delay 1 --retry-connrefused --fail http://127.0.0.1:8080/health

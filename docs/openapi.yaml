@@ -1,0 +1,419 @@
+openapi: 3.0.3
+info:
+  title: AMARYT Direct Install Server
+  version: 1.0.0
+servers:
+  - url: https://install.example.org
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Read process health
+      security: []
+      responses:
+        "200":
+          description: Read process health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/config:
+    get:
+      operationId: config
+      summary: Read public availability and limits
+      security: []
+      responses:
+        "200":
+          description: Read public availability and limits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Config"
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/install/resolve:
+    post:
+      operationId: resolveSource
+      summary: Validate source and its redirects using HTTPS HEAD
+      security:
+        - bearer: []
+      responses:
+        "200":
+          description: Validate source and its redirects using HTTPS HEAD
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resolved"
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Source"
+  /api/v1/install/sessions:
+    post:
+      operationId: createSession
+      summary: Reserve an upload session
+      security:
+        - bearer: []
+      responses:
+        "201":
+          description: Reserve an upload session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Application"
+  /api/v1/install/sessions/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-f0-9]{48}$
+    get:
+      operationId: getStatus
+      summary: Read owner session status
+      security:
+        - bearer: []
+      responses:
+        "200":
+          description: Read owner session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/install/sessions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-f0-9]{48}$
+    delete:
+      operationId: deleteSession
+      summary: Revoke access and clean the session
+      security:
+        - bearer: []
+      responses:
+        "204":
+          description: Revoke access and clean the session
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/install/sessions/{id}/upload:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-f0-9]{48}$
+    post:
+      operationId: uploadPackage
+      summary: Upload the signed package after explicit consent
+      security:
+        - bearer: []
+      responses:
+        "200":
+          description: Upload the signed package after explicit consent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      parameters:
+        - name: X-AMARYT-Upload-Consent
+          in: header
+          required: true
+          schema:
+            type: string
+            enum:
+              - "1"
+        - name: Content-Length
+          in: header
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+  /api/v1/install/sessions/{id}/manifest.plist:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-f0-9]{48}$
+      - name: key
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 43
+          maxLength: 43
+        description: Expiring file capability
+    get:
+      operationId: getManifest
+      summary: Fetch temporary Manifest
+      security: []
+      responses:
+        "200":
+          description: Fetch temporary Manifest
+          content:
+            application/xml:
+              schema:
+                type: string
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    head:
+      operationId: headManifest
+      summary: Read headers for Manifest
+      security: []
+      responses:
+        "200":
+          description: Read headers for Manifest
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/install/sessions/{id}/app.ipa:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-f0-9]{48}$
+      - name: key
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 43
+          maxLength: 43
+        description: Expiring file capability
+    get:
+      operationId: getPackage
+      summary: Fetch temporary Package
+      security: []
+      responses:
+        "200":
+          description: Fetch temporary Package
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    head:
+      operationId: headPackage
+      summary: Read headers for Package
+      security: []
+      responses:
+        "200":
+          description: Read headers for Package
+        default:
+          description: Request failed. See docs/api.md for error codes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+  schemas:
+    Health:
+      type: object
+      required:
+        - status
+        - enabled
+        - apiVersion
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        enabled:
+          type: boolean
+        apiVersion:
+          type: integer
+          format: int64
+      additionalProperties: false
+    Config:
+      type: object
+      required:
+        - apiVersion
+        - enabled
+        - uploadOptional
+        - maxIpaBytes
+        - sessionTTLSeconds
+        - fileTTLSeconds
+      properties:
+        apiVersion:
+          type: integer
+          format: int64
+        enabled:
+          type: boolean
+        uploadOptional:
+          type: boolean
+        maxIpaBytes:
+          type: integer
+          format: int64
+        sessionTTLSeconds:
+          type: integer
+          format: int64
+        fileTTLSeconds:
+          type: integer
+          format: int64
+      additionalProperties: false
+    Application:
+      type: object
+      required:
+        - title
+        - bundleIdentifier
+        - bundleVersion
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        bundleIdentifier:
+          type: string
+          maxLength: 255
+          pattern: ^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$
+        bundleVersion:
+          type: string
+          maxLength: 64
+          pattern: ^[0-9A-Za-z.-]+$
+      additionalProperties: false
+    Session:
+      type: object
+      required:
+        - id
+        - state
+        - expiresAt
+        - sizeBytes
+        - manifestRequested
+        - packageRequested
+        - manifestURL
+      properties:
+        id:
+          type: string
+          pattern: ^[a-f0-9]{48}$
+        state:
+          type: string
+          enum:
+            - awaiting_upload
+            - uploading
+            - ready
+        expiresAt:
+          type: string
+          format: date-time
+        sizeBytes:
+          type: integer
+          format: int64
+        manifestRequested:
+          type: boolean
+        packageRequested:
+          type: boolean
+        manifestURL:
+          type: string
+          format: uri
+          nullable: true
+      additionalProperties: false
+    Source:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 4096
+      additionalProperties: false
+    Resolved:
+      type: object
+      required:
+        - url
+        - sizeBytes
+      properties:
+        url:
+          type: string
+          format: uri
+        sizeBytes:
+          type: integer
+          format: int64
+          nullable: true
+      additionalProperties: false
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+        requestId:
+          type: string
